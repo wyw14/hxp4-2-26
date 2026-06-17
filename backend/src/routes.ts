@@ -29,16 +29,17 @@ router.post('/games', (req, res) => {
 router.get('/games', (req, res) => {
   try {
     const games = listGames();
-    const response: ApiResponse<typeof games> = {
+    const simplifiedGames = games.map((g) => ({
+      id: g.id,
+      level: g.level,
+      status: g.status,
+      steps: g.steps,
+      optimalSteps: g.optimalSteps,
+      updatedAt: g.updatedAt,
+    }));
+    const response: ApiResponse<typeof simplifiedGames> = {
       success: true,
-      data: games.map((g) => ({
-        id: g.id,
-        level: g.level,
-        status: g.status,
-        steps: g.steps,
-        optimalSteps: g.optimalSteps,
-        updatedAt: g.updatedAt,
-      })),
+      data: simplifiedGames,
     };
     res.json(response);
   } catch (error) {
@@ -85,9 +86,9 @@ router.post('/games/:id/extend', (req, res) => {
     const result = extendMycelium(game, coord);
     saveGame(result.game);
 
-    const response: ApiResponse = {
+    const response: ApiResponse<typeof result.game> = {
       success: result.success,
-      data: result.game,
+      data: result.success ? result.game : undefined,
       error: result.success ? undefined : result.message,
     };
     res.json(response);
@@ -111,9 +112,9 @@ router.post('/games/:id/undo', (req, res) => {
     const result = undoLastMove(game);
     saveGame(result.game);
 
-    const response: ApiResponse = {
+    const response: ApiResponse<typeof result.game> = {
       success: result.success,
-      data: result.game,
+      data: result.success ? result.game : undefined,
       error: result.success ? undefined : result.message,
     };
     res.json(response);
@@ -135,9 +136,10 @@ router.post('/games/:id/reset', (req, res) => {
     }
 
     const newGame = createNewGame(game.level, game.gridRadius);
-    saveGame({ ...newGame, id: game.id, createdAt: game.createdAt });
+    const resetGame = { ...newGame, id: game.id, createdAt: game.createdAt };
+    saveGame(resetGame);
 
-    const response: ApiResponse = { success: true, data: { ...newGame, id: game.id } };
+    const response: ApiResponse<typeof resetGame> = { success: true, data: resetGame };
     res.json(response);
   } catch (error) {
     const response: ApiResponse = {
@@ -180,9 +182,9 @@ router.post('/games/:id/find-path', (req, res) => {
     }
 
     const path = findAutoPath(game, from, to);
-    const response: ApiResponse = {
+    const response: ApiResponse<typeof path> = {
       success: path !== null,
-      data: path || undefined,
+      data: path !== null ? path : undefined,
       error: path === null ? '找不到可行路径' : undefined,
     };
     res.json(response);

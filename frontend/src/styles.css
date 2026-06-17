@@ -182,6 +182,16 @@ body {
   background: rgba(255, 107, 107, 0.25);
 }
 
+.btn-success {
+  background: rgba(126, 217, 87, 0.15);
+  color: #7ed957;
+  border: 1px solid rgba(126, 217, 87, 0.3);
+}
+
+.btn-success:hover {
+  background: rgba(126, 217, 87, 0.25);
+}
+
 .btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
@@ -366,8 +376,8 @@ body {
 
 .win-stats {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 12px;
   margin: 24px 0;
 }
 

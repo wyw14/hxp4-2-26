@@ -24,6 +24,7 @@ export interface GameState {
   cells: Record<string, HexCell>;
   nutrients: string[];
   connectedNutrients: string[];
+  nutrientConnectionOrder: string[];
   startCoord: HexCoord;
   myceliumCells: HexCoord[];
   steps: number;

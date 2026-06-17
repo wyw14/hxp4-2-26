@@ -222,6 +222,74 @@ export class FungiGame {
     return section;
   }
 
+  private generateBattleReport(): string {
+    const gs = this.gameState!;
+    const steps = gs.steps;
+    const optimal = gs.optimalSteps;
+    const ratio = steps / optimal;
+
+    let stars = 3;
+    let starText = '⭐⭐⭐';
+    if (ratio > 1.5) {
+      stars = 1;
+      starText = '⭐☆☆';
+    } else if (ratio > 1.2) {
+      stars = 2;
+      starText = '⭐⭐☆';
+    }
+
+    const durationSec = Math.max(1, Math.floor((gs.updatedAt - gs.createdAt) / 1000));
+    const mins = Math.floor(durationSec / 60);
+    const secs = durationSec % 60;
+    const timeStr = mins > 0 ? `${mins}分${secs}秒` : `${secs}秒`;
+
+    const gridSize = gs.gridRadius;
+    const nutrientOrder = gs.nutrientConnectionOrder.length > 0
+      ? gs.nutrientConnectionOrder.map((id) => {
+          const idx = gs.nutrients.indexOf(id);
+          return `营养源${idx + 1}(${id})`;
+        }).join(' → ')
+      : '无';
+
+    const gameId = gs.id.substring(0, 8);
+
+    return `🍄 真菌网络扩增 - 通关战报
+━━━━━━━━━━━━━━━━━━━━
+🎮 游戏编号: ${gameId}...
+🗺️ 关卡: 第 ${gs.level} 关
+📐 地图大小: 半径 ${gridSize}
+👣 步数: ${steps} 步
+🎯 最优步数: ${optimal} 步
+⭐ 星级: ${starText} (${stars}/3)
+⏱️ 用时: ${timeStr}
+🪵 营养源顺序: ${nutrientOrder}
+━━━━━━━━━━━━━━━━━━━━
+${stars === 3 ? '🎉 完美通关！' : stars === 2 ? '👍 表现不错！' : '💪 继续加油！'}`;
+  }
+
+  private async copyBattleReport(): Promise<boolean> {
+    const report = this.generateBattleReport();
+    try {
+      await navigator.clipboard.writeText(report);
+      return true;
+    } catch (e) {
+      const textarea = document.createElement('textarea');
+      textarea.value = report;
+      textarea.style.position = 'fixed';
+      textarea.style.left = '-9999px';
+      document.body.appendChild(textarea);
+      textarea.select();
+      try {
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+        return true;
+      } catch (e2) {
+        document.body.removeChild(textarea);
+        return false;
+      }
+    }
+  }
+
   private showWinModal(): void {
     if (document.querySelector('.win-modal')) return;
 
@@ -242,6 +310,11 @@ export class FungiGame {
       starText = '⭐⭐☆';
     }
 
+    const durationSec = Math.max(1, Math.floor((this.gameState!.updatedAt - this.gameState!.createdAt) / 1000));
+    const mins = Math.floor(durationSec / 60);
+    const secs = durationSec % 60;
+    const timeStr = mins > 0 ? `${mins}分${secs}秒` : `${secs}秒`;
+
     modal.innerHTML = `
       <div class="win-modal-content">
         <div class="win-title">🎉 连接成功！</div>
@@ -255,18 +328,45 @@ export class FungiGame {
             <div class="win-stat-label">最优步数</div>
             <div class="win-stat-value">${optimal}</div>
           </div>
+          <div class="win-stat">
+            <div class="win-stat-label">用时</div>
+            <div class="win-stat-value">${timeStr}</div>
+          </div>
         </div>
         <div style="color: #8a8a9a; font-size: 13px; margin-bottom: 24px;">
           ${stars === 3 ? '完美！你找到了最优解！' : stars === 2 ? '表现不错，还能更优！' : '再接再厉，寻找更短的路径！'}
         </div>
         <div style="display: flex; gap: 10px; flex-direction: column;">
-          ${this.selectedLevel < 5 ? `<button class="btn btn-primary" id="next-level-btn">🚀 下一关</button>` : ''}
+          <button class="btn btn-primary" id="copy-report-btn">📋 复制通关战报</button>
+          ${this.selectedLevel < 5 ? `<button class="btn btn-secondary" id="next-level-btn">🚀 下一关</button>` : ''}
           <button class="btn btn-secondary" id="replay-btn">🔄 再玩一次</button>
         </div>
       </div>
     `;
 
     document.body.appendChild(modal);
+
+    const copyBtn = modal.querySelector('#copy-report-btn')!;
+    let copyTimeout: any = null;
+    copyBtn.addEventListener('click', async () => {
+      const success = await this.copyBattleReport();
+      const originalText = copyBtn.innerHTML;
+      if (success) {
+        copyBtn.innerHTML = '✅ 战报已复制！';
+        copyBtn.classList.remove('btn-primary');
+        copyBtn.classList.add('btn-success');
+      } else {
+        copyBtn.innerHTML = '❌ 复制失败，请手动复制';
+        copyBtn.classList.remove('btn-primary');
+        copyBtn.classList.add('btn-danger');
+      }
+      if (copyTimeout) clearTimeout(copyTimeout);
+      copyTimeout = setTimeout(() => {
+        copyBtn.innerHTML = originalText;
+        copyBtn.classList.remove('btn-success', 'btn-danger');
+        copyBtn.classList.add('btn-primary');
+      }, 2500);
+    });
 
     const nextBtn = modal.querySelector('#next-level-btn');
     if (nextBtn) {

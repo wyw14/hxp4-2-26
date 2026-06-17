@@ -74,6 +74,7 @@ export function createNewGame(level: number = 1, customRadius?: number): GameSta
     cells,
     nutrients,
     connectedNutrients: [],
+    nutrientConnectionOrder: [],
     startCoord,
     myceliumCells,
     steps: 0,
@@ -177,6 +178,7 @@ export function extendMycelium(game: GameState, coord: HexCoord): { game: GameSt
     cells: { ...game.cells },
     myceliumCells: [...game.myceliumCells, coord],
     connectedNutrients: [...game.connectedNutrients],
+    nutrientConnectionOrder: [...game.nutrientConnectionOrder],
     steps: game.steps + 1,
     updatedAt: Date.now(),
   };
@@ -187,6 +189,7 @@ export function extendMycelium(game: GameState, coord: HexCoord): { game: GameSt
 
   if (cell.nutrientId && !newGame.connectedNutrients.includes(cell.nutrientId)) {
     newGame.connectedNutrients.push(cell.nutrientId);
+    newGame.nutrientConnectionOrder.push(cell.nutrientId);
   }
 
   if (newGame.connectedNutrients.length === newGame.nutrients.length) {
@@ -211,6 +214,9 @@ export function undoLastMove(game: GameState): { game: GameState; success: boole
     cells: { ...game.cells },
     myceliumCells: game.myceliumCells.slice(0, -1),
     connectedNutrients: game.connectedNutrients.filter((n) => n !== lastCell?.nutrientId),
+    nutrientConnectionOrder: lastCell?.nutrientId
+      ? game.nutrientConnectionOrder.filter((n) => n !== lastCell.nutrientId)
+      : [...game.nutrientConnectionOrder],
     steps: Math.max(0, game.steps - 1),
     status: 'playing',
     updatedAt: Date.now(),
