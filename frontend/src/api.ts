@@ -8,12 +8,31 @@ const api = axios.create({
   timeout: 5000,
 });
 
+function normalizeGameState(gs: GameState): GameState {
+  return {
+    ...gs,
+    nutrientConnectionOrder: gs.nutrientConnectionOrder ?? [],
+    connectedNutrients: gs.connectedNutrients ?? [],
+    nutrients: gs.nutrients ?? [],
+    myceliumCells: gs.myceliumCells ?? [],
+    cells: gs.cells ?? {},
+    steps: gs.steps ?? 0,
+    optimalSteps: gs.optimalSteps ?? 0,
+    level: gs.level ?? 1,
+    gridRadius: gs.gridRadius ?? 3,
+    startCoord: gs.startCoord ?? { q: 0, r: 0 },
+    status: gs.status ?? 'playing',
+    createdAt: gs.createdAt ?? Date.now(),
+    updatedAt: gs.updatedAt ?? Date.now(),
+  };
+}
+
 export async function createGame(level: number = 1, gridRadius?: number): Promise<GameState> {
   const response = await api.post<ApiResponse<GameState>>('/games', { level, gridRadius });
   if (!response.data.success || !response.data.data) {
     throw new Error(response.data.error || '创建游戏失败');
   }
-  return response.data.data;
+  return normalizeGameState(response.data.data);
 }
 
 export async function getGame(id: string): Promise<GameState> {
@@ -21,7 +40,7 @@ export async function getGame(id: string): Promise<GameState> {
   if (!response.data.success || !response.data.data) {
     throw new Error(response.data.error || '加载游戏失败');
   }
-  return response.data.data;
+  return normalizeGameState(response.data.data);
 }
 
 export async function extendMycelium(id: string, coord: HexCoord): Promise<GameState> {
@@ -29,7 +48,7 @@ export async function extendMycelium(id: string, coord: HexCoord): Promise<GameS
   if (!response.data.success || !response.data.data) {
     throw new Error(response.data.error || '延伸菌丝失败');
   }
-  return response.data.data;
+  return normalizeGameState(response.data.data);
 }
 
 export async function undoMove(id: string): Promise<GameState> {
@@ -37,7 +56,7 @@ export async function undoMove(id: string): Promise<GameState> {
   if (!response.data.success || !response.data.data) {
     throw new Error(response.data.error || '撤销失败');
   }
-  return response.data.data;
+  return normalizeGameState(response.data.data);
 }
 
 export async function resetGame(id: string): Promise<GameState> {
@@ -45,7 +64,7 @@ export async function resetGame(id: string): Promise<GameState> {
   if (!response.data.success || !response.data.data) {
     throw new Error(response.data.error || '重置失败');
   }
-  return response.data.data;
+  return normalizeGameState(response.data.data);
 }
 
 export async function findPath(id: string, from: HexCoord, to: HexCoord): Promise<HexCoord[] | null> {

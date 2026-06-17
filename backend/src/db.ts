@@ -33,15 +33,35 @@ function writeDb(db: Database): void {
   fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2));
 }
 
+function normalizeGame(game: GameState): GameState {
+  return {
+    ...game,
+    nutrientConnectionOrder: game.nutrientConnectionOrder ?? [],
+    connectedNutrients: game.connectedNutrients ?? [],
+    nutrients: game.nutrients ?? [],
+    myceliumCells: game.myceliumCells ?? [],
+    cells: game.cells ?? {},
+    steps: game.steps ?? 0,
+    optimalSteps: game.optimalSteps ?? 0,
+    level: game.level ?? 1,
+    gridRadius: game.gridRadius ?? 3,
+    startCoord: game.startCoord ?? { q: 0, r: 0 },
+    status: game.status ?? 'playing',
+    createdAt: game.createdAt ?? Date.now(),
+    updatedAt: game.updatedAt ?? Date.now(),
+  };
+}
+
 export function saveGame(game: GameState): void {
   const db = readDb();
-  db.games[game.id] = { ...game, updatedAt: Date.now() };
+  db.games[game.id] = { ...normalizeGame(game), updatedAt: Date.now() };
   writeDb(db);
 }
 
 export function loadGame(id: string): GameState | null {
   const db = readDb();
-  return db.games[id] || null;
+  const game = db.games[id];
+  return game ? normalizeGame(game) : null;
 }
 
 export function deleteGame(id: string): boolean {
@@ -56,5 +76,7 @@ export function deleteGame(id: string): boolean {
 
 export function listGames(): GameState[] {
   const db = readDb();
-  return Object.values(db.games).sort((a, b) => b.updatedAt - a.updatedAt);
+  return Object.values(db.games)
+    .map(normalizeGame)
+    .sort((a, b) => b.updatedAt - a.updatedAt);
 }

@@ -224,9 +224,23 @@ export class FungiGame {
 
   private generateBattleReport(): string {
     const gs = this.gameState!;
-    const steps = gs.steps;
-    const optimal = gs.optimalSteps;
-    const ratio = steps / optimal;
+    const safeGs: GameState = {
+      ...gs,
+      nutrients: gs.nutrients ?? [],
+      connectedNutrients: gs.connectedNutrients ?? [],
+      nutrientConnectionOrder: gs.nutrientConnectionOrder ?? [],
+      steps: gs.steps ?? 0,
+      optimalSteps: gs.optimalSteps ?? 0,
+      level: gs.level ?? 1,
+      gridRadius: gs.gridRadius ?? 3,
+      id: gs.id ?? 'unknown',
+      createdAt: gs.createdAt ?? Date.now(),
+      updatedAt: gs.updatedAt ?? Date.now(),
+    };
+
+    const steps = safeGs.steps;
+    const optimal = Math.max(1, safeGs.optimalSteps);
+    const ratio = optimal > 0 ? steps / optimal : 1;
 
     let stars = 3;
     let starText = '⭐⭐⭐';
@@ -238,55 +252,94 @@ export class FungiGame {
       starText = '⭐⭐☆';
     }
 
-    const durationSec = Math.max(1, Math.floor((gs.updatedAt - gs.createdAt) / 1000));
+    const durationSec = Math.max(1, Math.floor((safeGs.updatedAt - safeGs.createdAt) / 1000));
     const mins = Math.floor(durationSec / 60);
     const secs = durationSec % 60;
     const timeStr = mins > 0 ? `${mins}分${secs}秒` : `${secs}秒`;
 
-    const gridSize = gs.gridRadius;
-    const nutrientOrder = gs.nutrientConnectionOrder.length > 0
-      ? gs.nutrientConnectionOrder.map((id) => {
-          const idx = gs.nutrients.indexOf(id);
-          return `营养源${idx + 1}(${id})`;
-        }).join(' → ')
-      : '无';
+    const gridSize = safeGs.gridRadius;
 
-    const gameId = gs.id.substring(0, 8);
+    let finalOrder: string[] = [];
+    if (safeGs.nutrientConnectionOrder && safeGs.nutrientConnectionOrder.length > 0) {
+      finalOrder = [...safeGs.nutrientConnectionOrder];
+    } else if (safeGs.connectedNutrients && safeGs.connectedNutrients.length > 0) {
+      finalOrder = [...safeGs.connectedNutrients];
+    }
+
+    const mapNutrientId = (id: string): string => {
+      const idx = safeGs.nutrients.indexOf(id);
+      if (idx >= 0) {
+        return `营养源${idx + 1}`;
+      }
+      const m = id.match(/nutrient_(\d+)/);
+      if (m) {
+        return `营养源${parseInt(m[1], 10) + 1}`;
+      }
+      return id;
+    };
+
+    const nutrientOrderStr = finalOrder.length > 0
+      ? finalOrder.map(mapNutrientId).join(' → ')
+      : (safeGs.nutrients.length > 0 ? `已连接${safeGs.connectedNutrients.length}/${safeGs.nutrients.length}个（旧存档无顺序记录）` : '无');
+
+    const gameId = safeGs.id;
 
     return `🍄 真菌网络扩增 - 通关战报
 ━━━━━━━━━━━━━━━━━━━━
-🎮 游戏编号: ${gameId}...
-🗺️ 关卡: 第 ${gs.level} 关
+🎮 游戏编号: ${gameId}
+🗺️ 关卡: 第 ${safeGs.level} 关
 📐 地图大小: 半径 ${gridSize}
 👣 步数: ${steps} 步
 🎯 最优步数: ${optimal} 步
 ⭐ 星级: ${starText} (${stars}/3)
 ⏱️ 用时: ${timeStr}
-🪵 营养源顺序: ${nutrientOrder}
+🪵 营养源顺序: ${nutrientOrderStr}
 ━━━━━━━━━━━━━━━━━━━━
 ${stars === 3 ? '🎉 完美通关！' : stars === 2 ? '👍 表现不错！' : '💪 继续加油！'}`;
   }
 
   private async copyBattleReport(): Promise<boolean> {
     const report = this.generateBattleReport();
+
+    if (navigator.clipboard && window.isSecureContext) {
+      try {
+        await navigator.clipboard.writeText(report);
+        try {
+          const clipText = await navigator.clipboard.readText();
+          if (clipText === report) {
+            return true;
+          }
+        } catch {
+          return true;
+        }
+      } catch {
+      }
+    }
+
     try {
-      await navigator.clipboard.writeText(report);
-      return true;
-    } catch (e) {
       const textarea = document.createElement('textarea');
       textarea.value = report;
       textarea.style.position = 'fixed';
+      textarea.style.top = '-9999px';
       textarea.style.left = '-9999px';
+      textarea.style.opacity = '0';
+      textarea.setAttribute('readonly', '');
       document.body.appendChild(textarea);
+      textarea.focus();
       textarea.select();
+      textarea.setSelectionRange(0, report.length);
+
+      let copyOk = false;
       try {
-        document.execCommand('copy');
-        document.body.removeChild(textarea);
-        return true;
-      } catch (e2) {
-        document.body.removeChild(textarea);
-        return false;
+        copyOk = document.execCommand('copy');
+      } catch {
+        copyOk = false;
       }
+
+      document.body.removeChild(textarea);
+      return copyOk;
+    } catch {
+      return false;
     }
   }
 
